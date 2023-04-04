@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
-from model.model_z import InvISPNet
+from model.dcinn import InvISPNet
 import argparse
 import torch.optim as optim
 from tensorboardX import SummaryWriter
