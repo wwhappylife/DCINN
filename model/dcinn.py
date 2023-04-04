@@ -5,8 +5,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import torch.nn.init as init
-from .modules import InvertibleConv1x1
-from invert_to_learn import InvertibleLayer
 from utils import determine_conv_functional
 from haar_down import HaarDownsampling
 from scipy import linalg as la
