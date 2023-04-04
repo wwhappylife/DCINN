@@ -10,10 +10,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
-from model.dcinn import InvISPNet
+from model.dcinn_ps import DCINN
 import argparse
 import torch.optim as optim
-from tensorboardX import SummaryWriter
 import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 import torch.optim.lr_scheduler as lrs
@@ -74,7 +73,7 @@ print(opt)
 
 
 
-def train(epoch, writer):
+def train(epoch):
     epoch_loss = 0
     for _, batch in enumerate(training_data_loader, 1):
         HSI,_,MS, HS = Variable(batch[0]), Variable(batch[1]), Variable(batch[2]), Variable(batch[3])
@@ -104,13 +103,8 @@ def train(epoch, writer):
         epoch_loss += loss.item()
         print("===> Epoch{}: Loss: {:.2e} || s_loss: {:.2e} || Learning rate: lr={}.".format(epoch, 
              HSI_l1, HS_l1, optimizer_f.param_groups[0]['lr']))
-        writer.add_scalar('loss', epoch_loss, epoch)
-        writer.add_scalar('hs_loss', 1e-3*HS_l1, epoch)
-        PAN_Loss[epoch] = HS_l1.item()
-        Total_Loss[epoch] = loss.item()
 
-
-def test(write):
+def test():
     avg_psnr = 0.0
     avg_ergas = 0.0
     avg_sam = 0.0
@@ -158,7 +152,6 @@ def test(write):
         ckt['psnr'] = avg_psnr
     print("===> Avg.PSNR: {:.4f} dB || ssim: {:.4f} || ergas: {:.4f} || sam: {:.4f} || Best.PSNR: {:.4f} dB || Epoch: {}"
           .format(avg_psnr, avg_ssim, avg_ergas, avg_sam, ckt['psnr'], ckt['epoch']))
-    writer.add_scalar('best_psnr', ckt['psnr'], ckt['epoch'])
     torch.set_grad_enabled(True)
 
 
@@ -177,8 +170,6 @@ torch.manual_seed(opt.seed)
 if cuda:
     torch.cuda.manual_seed(opt.seed)
 
-writer = SummaryWriter(opt.save_folder)
-
 print('===> Loading datasets')
 
 train_set = Dataset_Pro_h5(opt.image_dataset)
@@ -188,7 +179,7 @@ test_data_loader = DataLoader(dataset=test_set, num_workers=opt.threads, batch_s
 print('===> Building model ', opt.model_type)
 
 
-f_model = InvISPNet(channel_in=8, channel_out=8, block_num=3).to(device)
+f_model = DCINN(channel_in=8, channel_out=8, block_num=3).to(device)
 l1 = l1_loss().to(device)
 
 print('---------- Networks architecture -------------')
@@ -214,8 +205,8 @@ ckt = {'epoch':0, 'psnr':0.0}
 
 for epoch in range(opt.start_iter, opt.nEpochs + 1):
             
-            train(epoch, writer)
+            train(epoch)
             scheduler_f.step()
             if (epoch+1) % (opt.snapshots) == 0:
                 checkpoint(epoch)
-                test(writer)
+                test()
