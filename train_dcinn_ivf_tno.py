@@ -17,32 +17,22 @@ import torchvision.transforms as transforms
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
-from model.dcinn_ivf import DCINN
-
+from model.dcinn_ivf import DCINN as DCINN
 
 import random
 from random import randrange
-from vgg import Vgg16
-from loss import vgg_loss
-from pytorch_ssim import ssim,tv_loss
-from losses import ssim_loss_ir,ssim_loss_vi , sf_loss_ir, sf_loss_vi, z_loss
+from losses import ssim_loss_ir,ssim_loss_vi , sf_loss_ir, sf_loss_vi
 
-device = torch.device('cuda:1')
-
-
-l1_loss = torch.nn.L1Loss().to(device)
-vgg = Vgg16(requires_grad = False).to(device)
-pc_loss = vgg_loss().to(device)
+device = torch.device('cuda:0')
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', default='model_inn', help='model name: (default: arch+timestamp)')
-    parser.add_argument('--epochs', default=120, type=int)
+    parser.add_argument('--epochs', default=20, type=int)
     parser.add_argument('--gamma', default=0.5, type=int)
     parser.add_argument('--batch_size', default=8, type=int)
-    parser.add_argument('--lr', '--learning-rate', default=3e-5, type=float)
-    parser.add_argument('--weight', default=[1,0.05,0.0006, 0.00025], type=float)
+    parser.add_argument('--lr', '--learning-rate', default=5e-5, type=float)
     parser.add_argument('--betas', default=(0.9, 0.999), type=tuple)
     parser.add_argument('--eps', default=1e-8, type=float)
 
@@ -125,54 +115,39 @@ def train(args, train_loader_ir,train_loader_vi, model, criterion_ssim_ir,  crit
     losses_ssim_vi = AverageMeter()
     losses_sf_ir = AverageMeter()
     losses_sf_vi = AverageMeter()
-    losses_vi_back = AverageMeter()
-    losses_ir_back = AverageMeter()
-    weight = args.weight
+    
     model.train()
 
     for i, (ir,vi)  in tqdm(enumerate(train_loader_ir), total=len(train_loader_ir)):
 
         ir = ir.to(device)
         vi = vi.to(device)
-
         
-        fused_detail, fused_base, ir_detail, vi_detail,m1,m2,m3 = model.forward(ir,vi)
-        recon_detail = model.reverse(fused_detail,m1,m2,m3)
-        out = fused_detail+fused_base
-        l_r =  0.1*criterion_sf_vi(fused_detail, vi_detail)# + 2*criterion_ssim_ir(fused_detail, ir_detail)# + 1e1*criterion_ssim_ir(fused_detail, ir_detail)
+        out = model.forward(ir,vi)
         
-        loss_vi_back = criterion_ssim_ir(recon_detail,fused_detail)
-        
-        loss_ir_back = loss_vi_back
-        
-        loss_ssim_ir = 0.6*criterion_ssim_ir(out,ir)
+        loss_ssim_ir = criterion_ssim_ir(out,ir)
         loss_ssim_vi=  criterion_ssim_vi(out,vi)
-        loss_sf_ir= 0.0002* criterion_sf_ir(out, ir) 
-        loss_sf_vi= 0.0002* criterion_sf_vi(out, vi) 
-        loss = loss_ssim_ir + loss_ssim_vi + loss_sf_ir + loss_sf_vi# + 0.1*loss_vi_back#  + l_r
+        loss_sf_ir= 0.0001 * criterion_sf_ir(out, ir) 
+        loss_sf_vi= 0.000 * criterion_sf_vi(out, vi) 
+        loss = loss_ssim_ir + loss_ssim_vi + loss_sf_ir + loss_sf_vi
         
         losses.update(loss.item(), ir.size(0))
         losses_ssim_ir.update(loss_ssim_ir.item(), ir.size(0))
         losses_ssim_vi.update(loss_ssim_vi.item(), ir.size(0))
         losses_sf_ir.update(loss_sf_ir.item(), ir.size(0))
         losses_sf_vi.update(loss_sf_vi.item(), ir.size(0))
-        losses_vi_back.update(loss_vi_back.item(), ir.size(0))
-        losses_ir_back.update(loss_ir_back.item(), ir.size(0))
 
         optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2e-4, norm_type=2)
         optimizer.step()
-        print('IR Back Loss: {:.2e} || VI Back Loss: {:.2e}'.format(loss_ir_back.item(),loss_vi_back.item()))
-
+       
     log = OrderedDict([
         ('loss', losses.avg),
         ('loss_ssim_ir', losses_ssim_ir.avg),
         ('loss_ssim_vi', losses_ssim_vi.avg),
         ('loss_sf_ir', losses_sf_ir.avg),
         ('loss_sf_vi', losses_sf_vi.avg),
-        ('loss_vi_back', losses_vi_back.avg),
-        ('loss_ir_back', losses_ir_back.avg),
     ])
     return log
 
@@ -196,12 +171,11 @@ def main():
     joblib.dump(args, 'models/%s/args.pkl' %args.name)
     cudnn.benchmark = True
 
-
+    
     training_dir_ir = "/home/wangwu/vin_fusion/RoadScene-master/train/infrared/*.jpg"
     folder_dataset_train_ir = glob.glob(training_dir_ir)
-    
+
     training_dir_vi = "/home/wangwu/vin_fusion/RoadScene-master/train/visible/*.jpg"
-    
     folder_dataset_train_vi = glob.glob(training_dir_vi)
     
     transform_train = transforms.Compose([transforms.ToTensor(),
@@ -220,9 +194,9 @@ def main():
     train_loader_vi = DataLoader(dataset_train_vi,
                                  shuffle=True,
                                  batch_size=args.batch_size)
+
     model = DCINN().to(device)
-    
-    
+
     criterion_ssim_ir = ssim_loss_ir
     criterion_ssim_vi = ssim_loss_vi
     criterion_sf_ir = sf_loss_ir
@@ -232,14 +206,7 @@ def main():
     for i in range(1, args.epochs+1):
         if i == 50:
             milestones.append(i)
-        if i == 100:
-            milestones.append(i)
-        if i == 200:
-            milestones.append(i)
-        if i == 300:
-            milestones.append(i)
     
-
     optimizer = optim.Adam(model.parameters(), lr=args.lr,
                            betas=args.betas, eps=args.eps)
     scheduler_f = lrs.MultiStepLR(optimizer, milestones, args.gamma)
@@ -251,8 +218,6 @@ def main():
                                 'loss_ssim_vi',
                                 'loss_sf_ir',
                                 'loss_sf_vi',
-                                'loss_vi_back',
-                                'loss_ir_back',
                                 ])
 
     for epoch in range(args.epochs):
@@ -260,14 +225,12 @@ def main():
 
         train_log = train(args, train_loader_ir,train_loader_vi, model, criterion_ssim_ir,  criterion_ssim_vi, criterion_sf_ir,  criterion_sf_vi, optimizer, epoch)     # 训练集
 
-        print('loss: %.4f - loss_ssim_ir: %.4f - loss_ssim_vi: %.4f - loss_sf_ir: %.4f- loss_sf_vi: %.4f loss_vi_back: %.4f loss_ir_back: %.4f'
+        print('loss: %.4f - loss_ssim_ir: %.4f - loss_ssim_vi: %.4f - loss_sf_ir: %.4f- loss_sf_vi: %.4f'
               % (train_log['loss'],
                  train_log['loss_ssim_ir'],
                  train_log['loss_ssim_vi'],
                  train_log['loss_sf_ir'],
                  train_log['loss_sf_vi'],
-                 train_log['loss_vi_back'],
-                 train_log['loss_ir_back'],
                  ))
 
         tmp = pd.Series([
@@ -278,9 +241,7 @@ def main():
             train_log['loss_ssim_vi'],
             train_log['loss_sf_ir'],
             train_log['loss_sf_vi'],
-            train_log['loss_vi_back'],
-            train_log['loss_ir_back'],
-        ], index=['epoch', 'loss', 'loss_ssim_ir', 'loss_ssim_vi', 'loss_sf_ir', 'loss_sf_vi', 'loss_vi_back', 'loss_ir_back'])
+        ], index=['epoch', 'loss', 'loss_ssim_ir', 'loss_ssim_vi', 'loss_sf_ir', 'loss_sf_vi'])
 
         log = log.append(tmp, ignore_index=True)
         log.to_csv('models/%s/log.csv' %args.name, index=False)

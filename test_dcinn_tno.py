@@ -2,67 +2,55 @@ from PIL import Image
 import numpy as np
 import os
 import torch
-
-import glob
-
 import time
 import imageio
-
 import torchvision.transforms as transforms
-from thop import clever_format
-from thop import profile
 from torch.utils.data import DataLoader, Dataset
-
 from model.dcinn_ivf import DCINN
-
 from tqdm import tqdm
 
 device = torch.device('cuda:0')
 
 
 class GetDataset(Dataset):
-    def __init__(self, ir_name_list, vi_name_list, transform=None):
-        #ir_name_list.sort()
-        #vi_name_list.sort()
+    def __init__(self, train_dir_ir, ir_name_list, train_dir_vi, vi_name_list, transform=None):
         self.ir_name_list = ir_name_list
         self.vi_name_list = vi_name_list
+        self.ir_dir = train_dir_ir
+        self.vi_dir = train_dir_vi
         self.transform = transform
 
     def __getitem__(self, index):
 
-        ir = self.ir_name_list[index]
-        vi = self.vi_name_list[index]
-
-        ir = Image.open(ir).convert('L')
-        vi = Image.open(vi).convert('L')
+        ir_name = self.ir_name_list[index]
+        vi_name = self.vi_name_list[index]
+        ir = Image.open(self.ir_dir+ir_name).convert('L')
+        vi = Image.open(self.vi_dir+vi_name).convert('L')
 
         
         # ------------------To tensor------------------#
         if self.transform is not None:
             tran = transforms.ToTensor()
             ir = tran(ir)
-
             vi = tran(vi)
 
-
-            return ir,vi
+            return ir,vi,ir_name
 
     def __len__(self):
         return len(self.ir_name_list)
 
-training_dir_ir = "/home/wangwu/Test_TNO/ir1/*.bmp"
-folder_dataset_train_ir = glob.glob(training_dir_ir)
+testing_dir_ir = "./testing_dataset/ivf/tno/ir/"
+ir_name_list = os.listdir(testing_dir_ir)
     
-training_dir_vi = "/home/wangwu/Test_TNO/vi1/*.bmp"
-    
-folder_dataset_train_vi = glob.glob(training_dir_vi)
+testing_dir_vi = "./testing_dataset/ivf/tno/vi/"
+vi_name_list = os.listdir(testing_dir_vi)
 
 transform_train = transforms.Compose([transforms.ToTensor(),
                                           transforms.Normalize((0.485, 0.456, 0.406),
                                                                (0.229, 0.224, 0.225))
                                           ])
 
-dataset_test_dir = GetDataset(folder_dataset_train_ir,folder_dataset_train_vi,
+dataset_test_dir = GetDataset(testing_dir_ir, ir_name_list,testing_dir_vi, vi_name_list,
                                                   transform=transform_train)
 test_loader = DataLoader(dataset_test_dir,
                               shuffle=False,
@@ -70,11 +58,11 @@ test_loader = DataLoader(dataset_test_dir,
 # test inn
 
 model = DCINN().to(device)
-model_path = "./models/model_inn/model_tno.pth"
-model.load_state_dict(torch.load(model_path))
+model_path = "./pretrained/model_tno.pth"
+model.load_state_dict(torch.load(model_path, map_location='cuda:0'))
 
 def fusion():
-    for i, (ir,vi)  in tqdm(enumerate(test_loader), total=len(test_loader)):
+    for i, (ir,vi,name)  in tqdm(enumerate(test_loader), total=len(test_loader)):
         
 
         ir = ir.to(device)
@@ -93,36 +81,12 @@ def fusion():
             
             ir = ir[:,:,:,:new_w]
             vi = vi[:,:,:,:new_w]
-
-        
-            
-        fused_detail, fused_base, ir_detail, vi_detail,m1,m2,m3  = model.forward(ir,vi)
-        out = fused_detail+fused_base
+ 
+        out = model.forward(vi,ir,'Max')
         out = torch.clamp(out,0,1)
         d = np.squeeze(out.detach().cpu().numpy())
-
         result = (d* 255).astype(np.uint8)
-        
-        d = np.squeeze(ir.detach().cpu().numpy())
-        ir = (d* 255).astype(np.uint8)
-
-        d = np.squeeze(vi.detach().cpu().numpy())
-        vi = (d* 255).astype(np.uint8)
-
-        imageio.imwrite('./tno_result/{}.bmp'.format( i), result)
-    
-        d = np.squeeze(out.detach().cpu().numpy())
-
-        result = (d* 255).astype(np.uint8)
-        
-        d = np.squeeze(ir.detach().cpu().numpy())
-        ir = (d* 255).astype(np.uint8)
-
-        d = np.squeeze(vi.detach().cpu().numpy())
-        vi = (d* 255).astype(np.uint8)
-
-        imageio.imwrite('./tno_result/{}.bmp'.format( i), result)
-
+        imageio.imwrite('./tno_result/'+name[0], result)
 
 if __name__ == '__main__':
 

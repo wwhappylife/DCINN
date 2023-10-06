@@ -21,9 +21,6 @@ import scipy.io as sio
 import socket
 
 from utils import cal_psnr, print_network, compute_ssim, compute_ergas, compute_sam
-from Loss import l1_loss
-
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
 parser.add_argument('--upscale_factor', type=int, default=4, help="super resolution upscale factor")
@@ -51,12 +48,12 @@ parser.add_argument('--seed', type=int, default=123, help='random seed to use. D
 parser.add_argument('--gpus', default=1, type=int, help='number of gpu')
 parser.add_argument('--device', type=str, default='cuda:0')
 parser.add_argument('--data_augmentation', type=bool, default=False)
-parser.add_argument('--image_dataset', type=str, default='data/train.h5')
-parser.add_argument('--test_dataset', type=str, default='data/valid.h5')
+parser.add_argument('--image_dataset', type=str, default='/home/wangwu/ps/data/train.h5')
+parser.add_argument('--test_dataset', type=str, default='/home/wangwu/ps/data/valid.h5')
 parser.add_argument('--model_type', type=str, default='IBP2')
 parser.add_argument('--residual', type=bool, default=False)
 parser.add_argument('--patch_size', type=int, default=64, help='Size of cropped HR image')
-parser.add_argument('--save_folder', default='weights_hm/', help='Location to save checkpoint models')
+parser.add_argument('--save_folder', default='weights_ps/', help='Location to save checkpoint models')
 
 Seed=555
 torch.manual_seed(Seed)
@@ -180,7 +177,7 @@ print('===> Building model ', opt.model_type)
 
 
 f_model = DCINN(channel_in=8, channel_out=8, block_num=3).to(device)
-l1 = l1_loss().to(device)
+l1 = torch.nn.L1Loss().to(device)
 
 print('---------- Networks architecture -------------')
 print_network(f_model)
