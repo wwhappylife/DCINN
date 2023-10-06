@@ -6,9 +6,6 @@ import torch.nn.functional as F
 import numpy as np
 import torch.nn.init as init
 from haar_down import HaarDownsampling
-from scipy import linalg as la
-from einops import rearrange
-from guided_filter import GuidedFilter2d, FastGuidedFilter2d
 from math import exp
 from torch.autograd import Variable
 
@@ -286,21 +283,21 @@ class DCINN(nn.Module):
         self.inn = Encoder()
         self.c_net = Condition_Net()
 
-    def forward(self, ir, vi): 
+    def forward(self, ir, vi, base_rule): 
         m1,m2,m3 = self.c_net(ir,vi)
 
 
         ir_base = avg_filter(ir,11, 1)
         vi_base = avg_filter(vi,11, 1) 
-
-        fused_base = (ir_base+vi_base)/2
+        if base_rule == 'Max':
+            fused_base,_ = torch.max(torch.cat((ir_base,vi_base),dim=1),dim=1)
+            fused_base = fused_base.unsqueeze(1)
+        else:
+            fused_base = ir_base*1/2 + vi_base*1/2
 
         ir_detail = ir - ir_base
         vi_detail = vi - vi_base
         
         fused_detail = self.inn(ir_detail+vi_detail, m1, m2, m3)
-        
-        return fused_detail, fused_base, ir_detail, vi_detail, m1,m2,m3
-    def reverse(self,fused_detail,m1,m2,m3):
-        recon_detail = self.inn.reverse(fused_detail, m1,m2,m3)
-        return recon_detail
+        out = fused_detail + fused_base
+        return out

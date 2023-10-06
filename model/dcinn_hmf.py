@@ -9,7 +9,25 @@ from utils import determine_conv_functional
 from haar_down import HaarDownsampling
 from scipy import linalg as la
 from einops import rearrange
+import scipy.io as sio
 
+def read_R():
+    r_path = "./D700/R.mat"
+    data = sio.loadmat(r_path)
+    r = data['R'][...]
+    r = np.array(r,dtype=np.float32)
+    R = torch.from_numpy(r).cuda()
+    R = R.unsqueeze(0)
+    return R
+
+def read_r():
+    r_path = "./D700-pinv-r/r.mat"
+    data = sio.loadmat(r_path)
+    r = data['r'][...]
+    r = np.array(r,dtype=np.float32)
+    R = torch.from_numpy(r)
+    R = R.unsqueeze(0)
+    return R
 
 def initialize_weights(net_l, scale=1):
     if not isinstance(net_l, list):
@@ -135,8 +153,7 @@ class CNet(torch.nn.Module):
 
     def forward(self, Y, Z):
         
-        Y = self.up(Y)
-
+        #Y = self.up(Y) # uncommen this code for training
         res = torch.cat((Y,Z), dim=1)
         res = self.in_conv(self.pad(res))
         res = self.df(res)
@@ -234,8 +251,6 @@ def conv_exp(input, kernel, terms=10, dynamic_truncation=0, verbose=False):
 def inv_conv_exp(input, kernel, terms=10, dynamic_truncation=0, verbose=False):
     return conv_exp(input, -kernel, terms, dynamic_truncation, verbose)
 
-
-
 class ActNorm(nn.Module):
     def __init__(self, in_channel):
         super().__init__()
@@ -281,7 +296,6 @@ class DCINN(nn.Module):
     def __init__(self, channel_in=3, channel_out=3, block_num=8):
         super(DCINN, self).__init__()
         operations = []
-
         channel_num = channel_in
         channel_split_num = channel_in//2
         self.channel_in = channel_in

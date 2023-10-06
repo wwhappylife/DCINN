@@ -294,7 +294,7 @@ class DCINN(nn.Module):
         self.har_out = HaarDownsampling(channel_in)
         self.c_net = CNet()
     
-    def forward(self, x, y,z):
+    def forward(self, x, y, z):
         m1,m = self.c_net(y,z)
        
         x = self.inv_in(x,m1)
