@@ -18,7 +18,7 @@ For IVF (TNO dataset) task, run train_dcinn_ivf_tno.py
 the pretrained models for all the image fusion task is available at \"./pretrained/\"
 ## 2.Test dataset
 For HMF task, please download the test data from BaiDuYun (https://pan.baidu.com/s/13lPrcZ2FYQxJ8HOSvJGFFQ) 
-(提取码：1234), then put the test data in "./testing_dataset/hmf/", and run test_dcinn_ps.py
+(提取码：1234), then put the test data in \"./testing_dataset/hmf/\", and run test_dcinn_ps.py
 
 For IVF (RS dataset) task, run test_dcinn_ivf_rs.py
 
