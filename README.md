@@ -5,6 +5,7 @@ Existing deep learning techniques for image fusion either learn image mapping (L
 # Training
 ## 1.Data Preparation
 The training dataset for Pansharpening task can be found in PanCollection (https://liangjiandeng.github.io/PanCollection.html)
+
 The training dataset for IVF task can be found in RoadScene (https://github.com/hanna-xu/FusionDN)
 ## 2.DCINN Training
 For Pansharpening task, run train_dcinn_ps.py
