@@ -5,8 +5,7 @@ from einops import rearrange
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from model.dcinn_hmf import DCINN
-from unf_model_cave import read_r
+from model.dcinn_hmf import DCINN,read_r, read_R
 import argparse
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
@@ -15,8 +14,6 @@ import torch.optim.lr_scheduler as lrs
 from dataUPHSI_D700 import DatasetFromHdf5
 import socket
 from utils import cal_psnr, print_network, compute_ssim, compute_ergas, compute_sam
-from Loss import l1_loss, ergas_loss
-
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
@@ -45,8 +42,8 @@ parser.add_argument('--seed', type=int, default=123, help='random seed to use. D
 parser.add_argument('--gpus', default=1, type=int, help='number of gpu')
 parser.add_argument('--device', type=str, default='cuda:0')
 parser.add_argument('--data_augmentation', type=bool, default=False)
-parser.add_argument('--train_dataset', type=str, default='/home/ShangqiDeng/data/HSI/harvard_x4/train_harvard(with_up)x4_rgb.h5')
-parser.add_argument('--test_dataset', type=str, default='/home/ShangqiDeng/data/HSI/harvard_x4/test_harvard(with_up)x4_rgb.h5')
+parser.add_argument('--train_dataset', type=str, default='/home/wangwu/HIF/data/train_harvard(with_up)x4_rgb.h5')
+parser.add_argument('--test_dataset', type=str, default='/home/wangwu/HIF/data/test_harvard(with_up)x4_rgb.h5')
 parser.add_argument('--model_type', type=str, default='IBP2')
 parser.add_argument('--residual', type=bool, default=False)
 parser.add_argument('--patch_size', type=int, default=64, help='Size of cropped HR image')
@@ -172,7 +169,7 @@ print('===> Building model ', opt.model_type)
 
 
 f_model = DCINN(channel_in=31, channel_out=31, block_num=4).to(device)
-l1 = l1_loss().to(device)
+l1 = torch.nn.L1Loss().to(device)
 
 print('---------- Networks architecture -------------')
 print_network(f_model)
