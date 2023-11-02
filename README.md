@@ -26,3 +26,13 @@ For Pansharpening task, run test_dcinn_ps.py
 
 For IVF (TNO dataset) task, run test_dcinn_ivf_tno.py
 
+# Citation
+@article{wang2023general,
+  title={A General Paradigm with Detail-Preserving Conditional Invertible Network for Image Fusion},
+  author={Wang, Wu and Deng, Liang-Jian and Ran, Ran and Vivone, Gemine},
+  journal={International Journal of Computer Vision},
+  pages={1--26},
+  year={2023},
+  publisher={Springer}
+}
+
