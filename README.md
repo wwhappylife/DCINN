@@ -7,6 +7,10 @@ Existing deep learning techniques for image fusion either learn image mapping (L
 The training dataset for Pansharpening task can be found in PanCollection (https://liangjiandeng.github.io/PanCollection.html)
 
 The training dataset for IVF task can be found in RoadScene (https://github.com/hanna-xu/FusionDN)
+
+The training/validation/testing dataset for HMF task CAVE dataset (4x/8x) can be download from BaiDuYun (https://pan.baidu.com/s/1NnevYdl6WAGEnesVmbAYhg) (access code :1234) and (https://pan.baidu.com/s/1JfgHrKhocRCZ0fOvRcz6gQ) 
+(access code : 1234), respectively.
+
 ## 2.DCINN Training
 For Pansharpening task, run train_dcinn_ps.py
 
